@@ -1,0 +1,649 @@
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="MobileOptimized" content="320">
+    <title>安全页面加载中</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- Tailwind配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#10B981',
+                        danger: '#EF4444',
+                        glass: 'rgba(255, 255, 255, 0.25)',
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    backdropBlur: {
+                        'xxl': '20px',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .glass-effect {
+                background: rgba(255, 255, 255, 0.25);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            }
+            .glass-dark {
+                background: rgba(30, 41, 59, 0.3);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+            }
+            .text-glow {
+                text-shadow: 0 0 10px rgba(79, 70, 229, 0.5);
+            }
+            .loader-glow {
+                box-shadow: 0 0 15px rgba(79, 70, 229, 0.6);
+            }
+        }
+    </style>
+    
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            height: 100vh;
+            font-family: 'Inter', system-ui, sans-serif;
+            /* 背景渐变 */
+            background: linear-gradient(135deg, #f0f9ff 0%, #e6f7ff 50%, #d1ebff 100%);
+            background-attachment: fixed;
+        }
+
+        /* 装饰性背景元素 */
+        .bg-element {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.3;
+            z-index: 0;
+        }
+        
+        .bg-element-1 {
+            width: 600px;
+            height: 600px;
+            top: -300px;
+            left: -100px;
+            background: #4F46E5;
+        }
+        
+        .bg-element-2 {
+            width: 500px;
+            height: 500px;
+            bottom: -250px;
+            right: -150px;
+            background: #10B981;
+        }
+
+        /* 加载动画容器 - 玻璃态设计 */
+        .loader-container {
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+        }
+        
+        .loader-card {
+            padding: 40px 30px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 90%;
+            width: 380px;
+            z-index: 2;
+        }
+
+        /* 加载动画 */
+        .loader {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 25px;
+        }
+
+        .loader-circle {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            mix-blend-mode: screen;
+            animation: rotate 3s cubic-bezier(0.645, 0.045, 0.355, 1) infinite;
+        }
+
+        .loader-circle:nth-child(1) {
+            border-top-color: #4F46E5;
+            animation-delay: 0s;
+        }
+
+        .loader-circle:nth-child(2) {
+            border-top-color: #10B981;
+            animation-delay: 0.2s;
+        }
+
+        .loader-circle:nth-child(3) {
+            border-top-color: #F59E0B;
+            animation-delay: 0.4s;
+        }
+
+        .loader-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px;
+            height: 14px;
+            background-color: #4F46E5;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            width: 100%;
+            height: 3px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin: 25px 0 15px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4F46E5, #10B981);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* 加载文本 */
+        .loading-text {
+            color: #1E293B;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .loading-status {
+            color: #475569;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 错误信息 - 玻璃态设计 */
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px;
+            width: 90%;
+            max-width: 380px;
+            border-radius: 16px;
+            text-align: center;
+            z-index: 1001;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0.5s, transform 0.5s ease;
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+
+        .error-message.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .error-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            background-color: rgba(239, 68, 68, 0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .error-icon i {
+            font-size: 32px;
+            color: #EF4444;
+        }
+
+        .error-message h3 {
+            color: #1E293B;
+            margin-bottom: 12px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .error-message p {
+            color: #475569;
+            margin-bottom: 24px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .retry-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #4F46E5, #10B981);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+        }
+
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+        }
+
+        .retry-btn:active {
+            transform: translateY(0);
+        }
+
+        /* iframe 样式 */
+        .content-iframe {
+            height: 100%;
+            width: 100%;
+            position: fixed;
+            left: 0;
+            top: 0;
+            border: none;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        .content-iframe.loaded {
+            opacity: 1;
+        }
+
+        /* 隐藏加载器的类 */
+        .loader-hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        /* 动画定义 */
+        @keyframes rotate {
+            0% {
+                transform: rotate(0deg) scale(1);
+            }
+            50% {
+                transform: rotate(180deg) scale(1.1);
+            }
+            100% {
+                transform: rotate(360deg) scale(1);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.3);
+                opacity: 0.7;
+            }
+        }
+
+        /* 背景元素动画 */
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+        }
+        
+        .bg-element-1 {
+            animation: float 15s ease-in-out infinite;
+        }
+        
+        .bg-element-2 {
+            animation: float 18s ease-in-out infinite reverse;
+        }
+
+        /* 加载状态动画 */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <!-- 装饰性背景元素 -->
+    <div class="bg-element bg-element-1"></div>
+    <div class="bg-element bg-element-2"></div>
+
+    <!-- 加载动画容器 -->
+    <div class="loader-container" id="loaderContainer">
+        <div class="loader-card glass-effect">
+            <div class="loader">
+                <div class="loader-circle loader-glow"></div>
+                <div class="loader-circle loader-glow"></div>
+                <div class="loader-circle loader-glow"></div>
+                <div class="loader-dot"></div>
+            </div>
+            <div class="loading-text text-glow">安全验证中</div>
+            <div class="loading-status" id="loadingStatus">正在检查资源完整性...</div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 错误信息显示 -->
+    <div class="error-message glass-effect" id="errorMessage">
+        <div class="error-icon">
+            <i class="fa fa-exclamation-triangle"></i>
+        </div>
+        <h3>加载失败</h3>
+        <p id="errorDetails">无法加载指定的内容，请重试</p>
+        <button class="retry-btn" onclick="retryLoad()">重试</button>
+    </div>
+
+    <script>
+        // 全局变量
+        let iframe = null;
+        const MAX_LOAD_TIME = 15000; // 最大加载时间15秒
+        let loadTimeout = null;
+        let progressInterval = null;
+        let currentProgress = 0;
+        const statusMessages = [
+            "正在检查资源完整性...",
+            "验证安全证书...",
+            "建立加密连接...",
+            "加载资源文件...",
+            "完成最终验证..."
+        ];
+
+        // 初始化函数
+        function init() {
+            resetLoaderState();
+            
+            // 启动进度条动画
+            startProgressAnimation();
+            
+            // 解析URL参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedParam = urlParams.get('c');
+            let trueurl = null;
+
+            try {
+                // 解码并验证URL
+                if (encodedParam) {
+                    trueurl = atob(encodedParam);
+                    
+                    // 验证URL格式
+                    if (!isValidUrl(trueurl)) {
+                        throw new Error('无效的URL格式');
+                    }
+                } else {
+                    throw new Error('未找到URL参数');
+                }
+
+                // 加载iframe
+                loadIframe(trueurl);
+
+            } catch (error) {
+                console.error('初始化错误:', error);
+                showError(error.message);
+            }
+        }
+
+        // 重置加载器状态
+        function resetLoaderState() {
+            currentProgress = 0;
+            document.getElementById('progressBar').style.width = '0%';
+            
+            // 重置加载器显示
+            const loader = document.getElementById('loaderContainer');
+            loader.classList.remove('loader-hidden');
+            
+            // 隐藏错误信息
+            document.getElementById('errorMessage').classList.remove('show');
+            
+            // 清除定时器
+            if (loadTimeout) clearTimeout(loadTimeout);
+            if (progressInterval) clearInterval(progressInterval);
+        }
+
+        // 启动进度条动画
+        function startProgressAnimation() {
+            let statusIndex = 0;
+            const statusElement = document.getElementById('loadingStatus');
+            
+            // 更新状态消息
+            setInterval(() => {
+                statusIndex = (statusIndex + 1) % statusMessages.length;
+                statusElement.textContent = statusMessages[statusIndex];
+            }, 2500);
+            
+            // 进度条动画
+            progressInterval = setInterval(() => {
+                // 随机增加进度，但不超过80%
+                if (currentProgress < 80) {
+                    const increment = Math.random() * 5;
+                    currentProgress = Math.min(currentProgress + increment, 80);
+                    document.getElementById('progressBar').style.width = `${currentProgress}%`;
+                }
+            }, 500);
+        }
+
+        // 完成进度条
+        function completeProgress() {
+            clearInterval(progressInterval);
+            // 快速完成剩余进度
+            currentProgress = 100;
+            document.getElementById('progressBar').style.width = '100%';
+        }
+
+        // 验证URL有效性
+        function isValidUrl(url) {
+            try {
+                const parsedUrl = new URL(url);
+                // 只允许http和https协议
+                return ['http:', 'https:'].includes(parsedUrl.protocol);
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // 加载iframe内容
+        function loadIframe(url) {
+            // 清除之前的iframe
+            if (iframe) {
+                document.body.removeChild(iframe);
+                iframe = null;
+            }
+
+            // 创建新iframe
+            iframe = document.createElement('iframe');
+            iframe.className = 'content-iframe';
+            iframe.src = url;
+            iframe.setAttribute('loading', 'lazy');
+            
+            // 加载事件处理
+            let loadCompleted = false;
+            
+            // 成功加载
+            iframe.onload = function() {
+                if (!loadCompleted) {
+                    loadCompleted = true;
+                    clearTimeout(loadTimeout);
+                    completeProgress();
+                    
+                    // 延迟隐藏加载器，让用户看到完整进度
+                    setTimeout(() => {
+                        hideLoader();
+                        // 标记iframe为已加载，触发透明度动画
+                        iframe.classList.add('loaded');
+                        bindMouseWheel(iframe);
+                    }, 500);
+                    
+                    console.log('成功加载URL:', url);
+                }
+            };
+            
+            // 加载错误
+            iframe.onerror = function(error) {
+                if (!loadCompleted) {
+                    loadCompleted = true;
+                    clearTimeout(loadTimeout);
+                    clearInterval(progressInterval);
+                    console.error('iframe加载错误:', error);
+                    showError('无法加载内容，请检查URL是否有效');
+                }
+            };
+            
+            // 超时处理
+            loadTimeout = setTimeout(() => {
+                if (!loadCompleted) {
+                    loadCompleted = true;
+                    clearInterval(progressInterval);
+                    console.error('加载超时:', url);
+                    showError('加载超时，请稍后重试');
+                }
+            }, MAX_LOAD_TIME);
+            
+            document.body.appendChild(iframe);
+        }
+
+        // 隐藏加载动画
+        function hideLoader() {
+            const loader = document.getElementById('loaderContainer');
+            loader.classList.add('loader-hidden');
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            hideLoader();
+            const errorElement = document.getElementById('errorMessage');
+            const detailsElement = document.getElementById('errorDetails');
+            detailsElement.textContent = message;
+            errorElement.classList.add('show');
+        }
+
+        // 重试加载
+        function retryLoad() {
+            init();
+        }
+
+        // 处理鼠标滚轮事件 - 使用更高效的事件委托
+        function bindMouseWheel(ifr) {
+            try {
+                const doc = ifr.contentWindow.document;
+                const win = ifr.contentWindow;
+                
+                // 使用passive模式提升滚动性能
+                const options = { passive: false };
+                
+                // 更高效的滚动处理
+                function handleWheel(e) {
+                    // 跨域检查
+                    try {
+                        if (win.scrollY !== undefined) {
+                            // 允许默认行为，不手动干预
+                            return true;
+                        }
+                    } catch (e) {
+                        console.warn('跨域限制，无法访问滚动属性');
+                        return true;
+                    }
+                    
+                    // 只在必要时阻止默认行为
+                    e.preventDefault();
+                    
+                    // 使用requestAnimationFrame优化滚动性能
+                    requestAnimationFrame(() => {
+                        const deltaY = e.deltaY || (e.wheelDelta ? -e.wheelDelta : 0);
+                        const scrollAmount = deltaY > 0 ? 50 : -50;
+                        
+                        if (win.scrollTo) {
+                            win.scrollTo({
+                                top: win.scrollY + scrollAmount,
+                                behavior: 'smooth'
+                            });
+                        }
+                    });
+                }
+                
+                // 绑定事件
+                doc.addEventListener('wheel', handleWheel, options);
+                
+                // 添加清理函数，防止内存泄漏
+                ifr.cleanupWheelEvent = () => {
+                    doc.removeEventListener('wheel', handleWheel, options);
+                };
+                
+            } catch (e) {
+                console.warn('跨域限制，无法绑定鼠标滚轮事件:', e);
+            }
+        }
+
+        // 页面卸载时清理事件监听，防止内存泄漏
+        window.addEventListener('beforeunload', () => {
+            if (iframe && iframe.cleanupWheelEvent) {
+                iframe.cleanupWheelEvent();
+            }
+        });
+
+        // 页面加载完成后初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            // 如果DOM已经加载完成，立即初始化
+            init();
+        }
+    </script>
+</body>
+</html>
+    
